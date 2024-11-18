@@ -1,0 +1,44 @@
+#jupyterhub와 라이브러리 설치
+echo "Jupyterhub와 라이브러리 설치 중" 
+dnf install -y python3-pip npm
+npm install -g configurable-http-proxy
+pip install jupyterhub jupyterlab notebook
+
+#jupyterhub 설정 파일 생성 및 편집
+echo "Jupyterhub 설정 파일 생성 및 편집"
+jupyterhub --gernerate-config
+mkdir /etc/jupyterhub
+mv jupyterhub_config.py /etc/jupyterhub
+
+#jupyterHub 셋업 
+echo "c.Authenticator.allow_all = True" >>  /etc/jupyterhub/jupyterhub_config.py
+echo "c.JupyterHub.ip = ''" >> /etc/jupyterhub/jupyterhub_config.py
+ 
+#방화벽 제어 
+firewall-cmd --permanent --add-port=8000/tcp
+firewall-cmd --reload
+
+#JupyterHub 실행 
+jupyterhub --config /etc/jupyterhub/jupyterhub_config.py
+
+#JupyterHub 라는 서비스 만들기 
+cat << EOF >> /etc/systemd/system/jupyterhub.service
+[Unit]
+Description=JupyterHub service
+After=syslog.target network.target
+[Service]
+User=root
+Type=simple
+WorkingDirectory=/etc/jupyterhub
+ExecStart=/usr/local/bin/jupyterhub--config=jupyterhub_config.py
+ExecStop=/usr/bin/pkill-f jupyterhub
+Restart=always
+TimeoutStartSec=60
+RestartSec=60
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=jupyterhub
+[Install]
+WantedBy=multi-user.target network-online.target
+EOF
+
